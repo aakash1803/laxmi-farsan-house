@@ -1,9 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import lfhLogo from './assets/lfh-logo.png';
 import gathiyaHero from './assets/gathiya-without-bg.png';
 import sevHero from './assets/sev-without-bg.png';
 import chevdoHero from './assets/chevdo-without-bg.png';
+
+const WhatsAppIcon = ({ size = 16, style = {} }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width={size} 
+    height={size} 
+    fill="currentColor" 
+    viewBox="0 0 16 16"
+    style={{ display: "inline-block", verticalAlign: "middle", ...style }}
+  >
+    <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.93a7.9 7.9 0 0 0 1.08 3.971L0 16l4.195-1.106a7.86 7.86 0 0 0 3.793.978h.004c4.368 0 7.928-3.559 7.93-7.93a7.9 7.9 0 0 0 -2.322-5.618H13.6zM7.994 14.521a6.57 6.57 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.618-4.961c-.195-.097-1.155-.57-1.336-.632-.18-.063-.31-.094-.44.1-.13.195-.5.616-.614.738-.116.124-.232.14-.428.045a5.244 5.244 0 0 1-1.593-1.037 5.857 5.857 0 0 1-1.102-1.37c-.116-.196-.012-.302.087-.401.089-.089.195-.224.293-.335.1-.11.13-.186.195-.31.066-.124.033-.232-.017-.331-.05-.1-.44-1.06-.604-1.458-.16-.387-.319-.335-.44-.341-.12-.007-.258-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
+  </svg>
+);
 
 const MENU_DATA = {
   "Gathiya": [
@@ -89,9 +102,148 @@ function MenuItemCard({ item }) {
   );
 }
 
+const AdminLogin = ({ onLoginSuccess, onGoHome }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (username === 'admin' && password === 'Admin@LFH1234') {
+      onLoginSuccess();
+    } else {
+      setError('Invalid username or password');
+    }
+  };
+
+  return (
+    <div className="admin-login-wrapper">
+      <div className="admin-login-card">
+        <h2>Admin Login</h2>
+        <p className="admin-subtitle">Laxmi Farshan House Portal</p>
+        <form onSubmit={handleSubmit}>
+          {error && <div className="admin-error">{error}</div>}
+          <div className="input-group">
+            <label>Username</label>
+            <input 
+              type="text" 
+              value={username} 
+              onChange={(e) => setUsername(e.target.value)} 
+              placeholder="Enter username"
+              required 
+            />
+          </div>
+          <div className="input-group">
+            <label>Password</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              placeholder="Enter password"
+              required 
+            />
+          </div>
+          <button type="submit" className="pill lg">Log In</button>
+        </form>
+        <button className="back-home-btn" onClick={onGoHome}>← Back to Store</button>
+      </div>
+    </div>
+  );
+};
+
+const AdminDashboard = ({ onLogout }) => {
+  return (
+    <div className="admin-panel-wrapper">
+      <div className="admin-sidebar">
+        <div className="sidebar-brand">
+          <span>LFH Admin</span>
+        </div>
+        <div className="sidebar-menu">
+          <a href="#" className="active">Dashboard</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); onLogout(); }}>Logout</a>
+        </div>
+      </div>
+      <div className="admin-content">
+        <header className="admin-header">
+          <h2>Admin Dashboard</h2>
+          <button className="pill outline" onClick={onLogout}>Logout</button>
+        </header>
+        <div className="admin-body">
+          <div className="admin-empty-state">
+            <p>Welcome to the Laxmi Farshan House Admin Panel.</p>
+            <p className="subtext">Configure catalogs, edit items, and view inquiries (Interface is blank for now).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => sessionStorage.getItem('lfh_admin_auth') === 'true'
+  );
   const [activeHeroIdx, setActiveHeroIdx] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("Gathiya");
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateTo = (path) => {
+    window.history.pushState({}, '', path);
+    setCurrentPath(path);
+  };
+
+  useEffect(() => {
+    if (currentPath === '/admin' && !isAuthenticated) {
+      navigateTo('/admin/login');
+    } else if (currentPath === '/admin/login' && isAuthenticated) {
+      navigateTo('/admin');
+    }
+  }, [currentPath, isAuthenticated]);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    sessionStorage.setItem('lfh_admin_auth', 'true');
+    navigateTo('/admin');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('lfh_admin_auth');
+    navigateTo('/admin/login');
+  };
+
+  if (currentPath === '/admin/login') {
+    return (
+      <AdminLogin 
+        onLoginSuccess={handleLoginSuccess} 
+        onGoHome={() => navigateTo('/')} 
+      />
+    );
+  }
+
+  if (currentPath === '/admin') {
+    if (!isAuthenticated) {
+      return (
+        <AdminLogin 
+          onLoginSuccess={handleLoginSuccess} 
+          onGoHome={() => navigateTo('/')} 
+        />
+      );
+    }
+    return (
+      <AdminDashboard 
+        onLogout={handleLogout} 
+      />
+    );
+  }
 
   return (
     <>
@@ -175,7 +327,6 @@ function App() {
             <img className="p-card-img" src="https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=400&auto=format&fit=crop" alt="Nylon Sev" />
             <div className="p-card-body">
               <div className="p-card-name">Nylon Sev</div>
-              <div className="p-card-price">₹240/-</div>
               <div className="p-card-tag">Fan Favourite</div>
             </div>
           </div>
@@ -183,7 +334,6 @@ function App() {
             <img className="p-card-img" src="https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop" alt="Farsi Puri" />
             <div className="p-card-body">
               <div className="p-card-name">Farsi Puri</div>
-              <div className="p-card-price">₹240/-</div>
               <div className="p-card-tag">Chai Partner</div>
             </div>
           </div>
@@ -191,7 +341,6 @@ function App() {
             <img className="p-card-img" src="https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop" alt="Bhavnagari Gathiya" />
             <div className="p-card-body">
               <div className="p-card-name">Bhavnagari Gathiya</div>
-              <div className="p-card-price">₹240/-</div>
               <div className="p-card-tag">Classic</div>
             </div>
           </div>
@@ -199,7 +348,6 @@ function App() {
             <img className="p-card-img" src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=400&auto=format&fit=crop" alt="Masala Chana Dal" />
             <div className="p-card-body">
               <div className="p-card-name">Masala Chana Dal</div>
-              <div className="p-card-price">₹240/-</div>
               <div className="p-card-tag">Crunchy Hit</div>
             </div>
           </div>
@@ -207,7 +355,6 @@ function App() {
             <img className="p-card-img" src="https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=400&auto=format&fit=crop" alt="Tikhi Sev" />
             <div className="p-card-body">
               <div className="p-card-name">Tikhi Sev</div>
-              <div className="p-card-price">₹240/-</div>
               <div className="p-card-tag">Spice Lovers</div>
             </div>
           </div>
@@ -221,7 +368,9 @@ function App() {
           <h2>Festive Sweets & Bulk Boxes?</h2>
           <p>Moti chur laddu, Besan laddu, Mohan thal, Jalebi, and premium custom savouries. Custom packed for events, weddings, parties, or enterprise giftboxes.</p>
           <div>
-            <a className="pill" href="https://wa.me/917878828312?text=Hi%2C%20I%20want%20to%20place%20a%20bulk%20order" target="_blank" rel="noopener noreferrer">WhatsApp for Bulk Orders →</a>
+            <a className="pill" style={{ background: "#25D366", color: "#fff", display: "inline-flex", alignItems: "center", gap: "8px" }} href="https://wa.me/917878828312?text=Hi%2C%20I%20want%20to%20place%20a%20bulk%20order" target="_blank" rel="noopener noreferrer">
+              <WhatsAppIcon size={18} /> WhatsApp for Bulk Orders →
+            </a>
           </div>
         </div>
       </div>
@@ -289,7 +438,9 @@ function App() {
             <h3>Quick Hotline</h3>
             <p>
               <a href="tel:+917878828312">📞 +91 78788 28312</a><br />
-              <a href="https://wa.me/917878828312" target="_blank" rel="noopener noreferrer">💬 WhatsApp Instant Support</a>
+              <a href="https://wa.me/917878828312" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <WhatsAppIcon size={16} /> WhatsApp Instant Support
+              </a>
             </p>
           </div>
         </div>
@@ -298,7 +449,9 @@ function App() {
       {/* FLOATING BAR */}
       <div className="fab-row">
         <a className="pill outline" href="tel:+917878828312">📞 Call Shop</a>
-        <a className="pill" style={{ background: "#25D366", color: "#fff" }} href="https://wa.me/917878828312" target="_blank" rel="noopener noreferrer">💬 WhatsApp Order</a>
+        <a className="pill" style={{ background: "#25D366", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }} href="https://wa.me/917878828312" target="_blank" rel="noopener noreferrer">
+          <WhatsAppIcon size={18} /> WhatsApp Order
+        </a>
       </div>
     </>
   );
