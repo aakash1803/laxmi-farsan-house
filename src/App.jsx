@@ -84,6 +84,9 @@ const INITIAL_COUNTER_ITEMS = [
   }
 ];
 
+const DEFAULT_PHONE = "+91 78788 28312";
+const DEFAULT_ADDRESS = "Shop No.1, Airport Road\nOpposite Patel Park\nBhavnagar, Gujarat";
+
 const MENU_DATA = {
   "Gathiya": [
     { n: "Nylon Gathiya", img: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop" },
@@ -227,7 +230,10 @@ const AdminDashboard = ({
   onDeleteCounterItem,
   menuData,
   onAddMenuItem,
-  onDeleteMenuItem
+  onDeleteMenuItem,
+  storePhone,
+  storeAddress,
+  onUpdateSettings
 }) => {
   const [activeTab, setActiveTab] = useState('bestsellers');
 
@@ -244,6 +250,18 @@ const AdminDashboard = ({
   const [menuCat, setMenuCat] = useState('Gathiya');
   const [menuName, setMenuName] = useState('');
   const [menuImg, setMenuImg] = useState('');
+
+  // Store Settings State
+  const [tempPhone, setTempPhone] = useState(storePhone);
+  const [tempAddress, setTempAddress] = useState(storeAddress);
+
+  useEffect(() => {
+    setTempPhone(storePhone);
+  }, [storePhone]);
+
+  useEffect(() => {
+    setTempAddress(storeAddress);
+  }, [storeAddress]);
 
   const handleAddBestsellerForm = (e) => {
     e.preventDefault();
@@ -307,6 +325,13 @@ const AdminDashboard = ({
           >
             Menu Manager
           </a>
+          <a 
+            href="#" 
+            className={activeTab === 'settings' ? 'active' : ''} 
+            onClick={(e) => { e.preventDefault(); setActiveTab('settings'); }}
+          >
+            Store Settings
+          </a>
           <a href="#" onClick={(e) => { e.preventDefault(); onLogout(); }}>Logout</a>
         </div>
       </div>
@@ -317,7 +342,9 @@ const AdminDashboard = ({
               ? 'Bestsellers Manager' 
               : activeTab === 'counter' 
                 ? 'Counter Manager' 
-                : 'Menu Manager'}
+                : activeTab === 'menu' 
+                  ? 'Menu Manager' 
+                  : 'Store Settings'}
           </h2>
           <button className="pill outline" onClick={onLogout}>Logout</button>
         </header>
@@ -482,7 +509,7 @@ const AdminDashboard = ({
                 )}
               </div>
             </div>
-          ) : (
+          ) : activeTab === 'menu' ? (
             <div className="admin-grid-layout">
               {/* Menu Form Panel */}
               <div className="admin-form-panel">
@@ -608,6 +635,49 @@ const AdminDashboard = ({
                 )}
               </div>
             </div>
+          ) : (
+            <div className="admin-grid-layout" style={{ gridTemplateColumns: "1fr" }}>
+              {/* Settings Form Panel */}
+              <div className="admin-form-panel" style={{ maxWidth: "600px", margin: "0 auto", width: "100%" }}>
+                <h3>Update Store Settings</h3>
+                <form onSubmit={(e) => { e.preventDefault(); onUpdateSettings(tempPhone, tempAddress); alert('Settings saved successfully!'); }}>
+                  <div className="input-group">
+                    <label>Phone Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. +91 78788 28312"
+                      value={tempPhone}
+                      onChange={e => setTempPhone(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>Store Address</label>
+                    <textarea
+                      placeholder="Enter shop address..."
+                      value={tempAddress}
+                      onChange={e => setTempAddress(e.target.value)}
+                      rows={4}
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.25)',
+                        border: '1px solid var(--line-light)',
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        color: 'var(--cream)',
+                        fontSize: '0.95rem',
+                        outline: 'none',
+                        marginTop: '4px',
+                        width: '100%',
+                        resize: 'vertical',
+                        fontFamily: 'inherit'
+                      }}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="pill lg admin-add-btn">Save Settings</button>
+                </form>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -637,6 +707,14 @@ function App() {
     return saved ? JSON.parse(saved) : MENU_DATA;
   });
 
+  const [storePhone, setStorePhone] = useState(() => {
+    return localStorage.getItem('lfh_store_phone') || DEFAULT_PHONE;
+  });
+
+  const [storeAddress, setStoreAddress] = useState(() => {
+    return localStorage.getItem('lfh_store_address') || DEFAULT_ADDRESS;
+  });
+
   useEffect(() => {
     localStorage.setItem('lfh_bestsellers', JSON.stringify(bestsellers));
   }, [bestsellers]);
@@ -648,6 +726,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('lfh_menu_data', JSON.stringify(menuData));
   }, [menuData]);
+
+  useEffect(() => {
+    localStorage.setItem('lfh_store_phone', storePhone);
+  }, [storePhone]);
+
+  useEffect(() => {
+    localStorage.setItem('lfh_store_address', storeAddress);
+  }, [storeAddress]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -723,6 +809,22 @@ function App() {
     });
   };
 
+  const handleUpdateSettings = (phone, address) => {
+    setStorePhone(phone);
+    setStoreAddress(address);
+  };
+
+  const getWaLink = (text = '') => {
+    const clean = storePhone.replace(/\D/g, '');
+    const num = clean.length === 10 ? `91${clean}` : clean;
+    return `https://wa.me/${num}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
+  };
+
+  const getTelLink = () => {
+    const clean = storePhone.replace(/\D/g, '');
+    return `tel:${storePhone.trim().startsWith('+') ? storePhone.trim().replace(/\s+/g, '') : `+91${clean}`}`;
+  };
+
   if (currentPath === '/admin/login') {
     return (
       <AdminLogin
@@ -753,6 +855,9 @@ function App() {
         menuData={menuData}
         onAddMenuItem={handleAddMenuItem}
         onDeleteMenuItem={handleDeleteMenuItem}
+        storePhone={storePhone}
+        storeAddress={storeAddress}
+        onUpdateSettings={handleUpdateSettings}
       />
     );
   }
@@ -770,7 +875,7 @@ function App() {
           <a href="#menu">Menu</a>
           <a href="#contact">Contact</a>
         </div>
-        <a className="pill" href="https://wa.me/917878828312?text=Hi%2C%20I%27d%20like%20to%20order%20from%20Laxmi%20Farshan%20House" target="_blank" rel="noopener noreferrer">Order Now</a>
+        <a className="pill" href={getWaLink("Hi, I'd like to order from Laxmi Farshan House")} target="_blank" rel="noopener noreferrer">Order Now</a>
       </div>
 
       {/* HERO */}
@@ -781,7 +886,7 @@ function App() {
             <h1>Laxmi<br /><span>Farshan</span> House</h1>
             <p className="hero-tagline">Crispy. Fresh. Made right from our home recipes the way you've always remembered it.</p>
             <div className="hero-ctas">
-              <a className="pill lg" href="tel:+917878828312">📞 Call to Order</a>
+              <a className="pill lg" href={getTelLink()}>📞 Call to Order</a>
               <a className="pill lg outline" href="#menu">Full Menu ↓</a>
             </div>
             <div className="thumb-row">
@@ -854,7 +959,7 @@ function App() {
           <h2>Festive Sweets & Bulk Boxes?</h2>
           <p>Moti chur laddu, Besan laddu, Mohan thal, Jalebi, and premium custom savouries. Custom packed for events, weddings, parties, or enterprise giftboxes.</p>
           <div>
-            <a className="pill" style={{ background: "#25D366", color: "#fff", display: "inline-flex", alignItems: "center", gap: "8px" }} href="https://wa.me/917878828312?text=Hi%2C%20I%20want%20to%20place%20a%20bulk%20order" target="_blank" rel="noopener noreferrer">
+            <a className="pill" style={{ background: "#25D366", color: "#fff", display: "inline-flex", alignItems: "center", gap: "8px" }} href={getWaLink("Hi, I want to place a bulk order")} target="_blank" rel="noopener noreferrer">
               <WhatsAppIcon size={18} /> WhatsApp for Bulk Orders →
             </a>
           </div>
@@ -918,13 +1023,13 @@ function App() {
           </div>
           <div className="foot-col">
             <h3>Store Address</h3>
-            <p>Shop No.1, Airport Road<br />Opposite Patel Park<br />Bhavnagar, Gujarat</p>
+            <p style={{ whiteSpace: "pre-line" }}>{storeAddress}</p>
           </div>
           <div className="foot-col">
             <h3>Quick Hotline</h3>
             <p>
-              <a href="tel:+917878828312">📞 +91 78788 28312</a><br />
-              <a href="https://wa.me/917878828312" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <a href={getTelLink()}>📞 {storePhone}</a><br />
+              <a href={getWaLink()} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                 <WhatsAppIcon size={16} /> WhatsApp Instant Support
               </a>
             </p>
@@ -934,8 +1039,8 @@ function App() {
 
       {/* FLOATING BAR */}
       <div className="fab-row">
-        <a className="pill outline" href="tel:+917878828312">📞 Call Shop</a>
-        <a className="pill" style={{ background: "#25D366", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }} href="https://wa.me/917878828312" target="_blank" rel="noopener noreferrer">
+        <a className="pill outline" href={getTelLink()}>📞 Call Shop</a>
+        <a className="pill" style={{ background: "#25D366", color: "#fff", display: "inline-flex", alignItems: "center", gap: "6px" }} href={getWaLink()} target="_blank" rel="noopener noreferrer">
           <WhatsAppIcon size={18} /> WhatsApp Order
         </a>
       </div>
