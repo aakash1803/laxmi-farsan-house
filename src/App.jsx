@@ -26,31 +26,31 @@ const INITIAL_BESTSELLERS = [
   {
     id: 1,
     n: "Nylon Sev",
-    img: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=400&auto=format&fit=crop",
+    img: "",
     tag: "Fan Favourite"
   },
   {
     id: 2,
     n: "Farsi Puri",
-    img: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop",
+    img: "",
     tag: "Chai Partner"
   },
   {
     id: 3,
     n: "Bhavnagari Gathiya",
-    img: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop",
+    img: "",
     tag: "Classic"
   },
   {
     id: 4,
     n: "Masala Chana Dal",
-    img: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=400&auto=format&fit=crop",
+    img: "",
     tag: "Crunchy Hit"
   },
   {
     id: 5,
     n: "Tikhi Sev",
-    img: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=400&auto=format&fit=crop",
+    img: "",
     tag: "Spice Lovers"
   }
 ];
@@ -59,32 +59,32 @@ const INITIAL_COUNTER_ITEMS = [
   {
     id: 1,
     n: "Bhavnagari Sev",
-    img: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=300&auto=format&fit=crop"
+    img: ""
   },
   {
     id: 2,
     n: "Nylon Fine Sev",
-    img: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=300&auto=format&fit=crop"
+    img: ""
   },
   {
     id: 3,
     n: "Farsi Puri",
-    img: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=300&auto=format&fit=crop"
+    img: ""
   },
   {
     id: 4,
     n: "Tikha Sev",
-    img: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=300&auto=format&fit=crop"
+    img: ""
   },
   {
     id: 5,
     n: "Chana Dal",
-    img: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=300&auto=format&fit=crop"
+    img: ""
   },
   {
     id: 6,
     n: "Festive Sweets",
-    img: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=300&auto=format&fit=crop"
+    img: ""
   }
 ];
 
@@ -93,7 +93,7 @@ const DEFAULT_ADDRESS = "Shop No.1, Airport Road\nOpposite Patel Park\nBhavnagar
 
 const MENU_DATA = {
   "Gathiya": [
-    { n: "Nylon Gathiya", img: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop" },
+    { n: "Nylon Gathiya", img: "" },
     { n: "Tikha Gathiya" },
     { n: "Gada Tikha Gathiya" },
     { n: "Champakali Gathiya" },
@@ -101,7 +101,7 @@ const MENU_DATA = {
     { n: "Fafdi Gathiya" },
   ],
   "Sev": [
-    { n: "Regular Sev", img: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=400&auto=format&fit=crop" },
+    { n: "Regular Sev", img: "" },
     { n: "Tikhi Sev" },
     { n: "Khatti Meethi Sev" },
     { n: "0 No. Sev" },
@@ -115,7 +115,7 @@ const MENU_DATA = {
     { n: "Poha No Chevdo" },
   ],
   "Puri": [
-    { n: "Farsi Puri", img: "https://images.unsplash.com/photo-1601050690597-df056fb4ce78?q=80&w=400&auto=format&fit=crop" },
+    { n: "Farsi Puri", img: "" },
     { n: "Small Farsi Puri" },
     { n: "Chat Puri" },
     { n: "Gulab Puri" },
@@ -123,7 +123,7 @@ const MENU_DATA = {
   "Sweets & Others": [
     { n: "Bhakerwadi" },
     { n: "Cholafali" },
-    { n: "Moti chur laddu", img: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=400&auto=format&fit=crop" },
+    { n: "Moti chur laddu", img: "" },
     { n: "Besan laddu" },
     { n: "Mohan thal" },
     { n: "Jalebi" },
@@ -797,28 +797,32 @@ function App() {
   const [activeHeroIdx, setActiveHeroIdx] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("Gathiya");
   const [bestsellers, setBestsellers] = useState(() => {
+    if (isFirebaseEnabled) return [];
     const saved = localStorage.getItem('lfh_bestsellers');
     return saved ? JSON.parse(saved) : INITIAL_BESTSELLERS;
   });
 
   const [counterItems, setCounterItems] = useState(() => {
+    if (isFirebaseEnabled) return [];
     const saved = localStorage.getItem('lfh_counter_items');
     return saved ? JSON.parse(saved) : INITIAL_COUNTER_ITEMS;
   });
 
   const [menuData, setMenuData] = useState(() => {
+    if (isFirebaseEnabled) return {};
     const saved = localStorage.getItem('lfh_menu_data');
     return saved ? JSON.parse(saved) : MENU_DATA;
   });
 
   const [festiveItems, setFestiveItems] = useState(() => {
+    if (isFirebaseEnabled) return [];
     const saved = localStorage.getItem('lfh_festive_items');
     return saved ? JSON.parse(saved) : [
       {
         id: 'initial-festive',
         title: "Festive Sweets & Bulk Boxes?",
         description: "Moti chur laddu, Besan laddu, Mohan thal, Jalebi, and premium custom savouries. Custom packed for events, weddings, parties, or enterprise giftboxes.",
-        img: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=600&auto=format&fit=crop"
+        img: ""
       }
     ];
   });
@@ -850,12 +854,6 @@ function App() {
         full: item.img,
         alt: item.n
       });
-    } else {
-      imgs.push({
-        thumbnail: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=150&auto=format&fit=crop",
-        full: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=800&auto=format&fit=crop",
-        alt: "Our Bestsellers"
-      });
     }
 
     // 3. One from Straight from the Counter
@@ -868,12 +866,6 @@ function App() {
         full: item.img,
         alt: item.n
       });
-    } else {
-      imgs.push({
-        thumbnail: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=150&auto=format&fit=crop",
-        full: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=800&auto=format&fit=crop",
-        alt: "Straight from the Counter"
-      });
     }
 
     // 4. One from Explore Full Menu (any category)
@@ -885,12 +877,6 @@ function App() {
         thumbnail: item.img,
         full: item.img,
         alt: item.n
-      });
-    } else {
-      imgs.push({
-        thumbnail: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=150&auto=format&fit=crop",
-        full: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=800&auto=format&fit=crop",
-        alt: "Explore Full Menu"
       });
     }
 
