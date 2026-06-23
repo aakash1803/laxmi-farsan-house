@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import './App.css';
 import lfhLogo from './assets/lfh-logo.png';
 import gathiyaHero from './assets/gathiya-without-bg.png';
 import sevHero from './assets/sev-without-bg.png';
 import chevdoHero from './assets/chevdo-without-bg.png';
+
+// Firebase Firestore settings integration
+import { db, isFirebaseEnabled } from './firebase';
+import { doc, onSnapshot, setDoc, collection, addDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
 
 const WhatsAppIcon = ({ size = 16, style = {} }) => (
   <svg
@@ -133,28 +137,7 @@ const MENU_DATA = {
   ]
 };
 
-const HERO_IMAGES = [
-  {
-    thumbnail: gathiyaHero,
-    full: gathiyaHero,
-    alt: "Fresh Gathiya from Laxmi Farshan House"
-  },
-  {
-    thumbnail: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=150&auto=format&fit=crop",
-    full: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=800&auto=format&fit=crop",
-    alt: "Nylon Fine Sev from Laxmi Farshan House"
-  },
-  {
-    thumbnail: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=150&auto=format&fit=crop",
-    full: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=800&auto=format&fit=crop",
-    alt: "Festive Sweets & Laddus from Laxmi Farshan House"
-  },
-  {
-    thumbnail: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=150&auto=format&fit=crop",
-    full: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=800&auto=format&fit=crop",
-    alt: "Crunchy Masala Snacks"
-  }
-];
+// HERO_IMAGES is dynamically generated within the App component.
 
 function MenuItemCard({ item }) {
   return (
@@ -220,10 +203,10 @@ const AdminLogin = ({ onLoginSuccess, onGoHome }) => {
   );
 };
 
-const AdminDashboard = ({ 
-  onLogout, 
-  bestsellers, 
-  onAddBestseller, 
+const AdminDashboard = ({
+  onLogout,
+  bestsellers,
+  onAddBestseller,
   onDeleteBestseller,
   counterItems,
   onAddCounterItem,
@@ -233,7 +216,10 @@ const AdminDashboard = ({
   onDeleteMenuItem,
   storePhone,
   storeAddress,
-  onUpdateSettings
+  onUpdateSettings,
+  festiveItems,
+  onAddFestiveItem,
+  onDeleteFestiveItem
 }) => {
   const [activeTab, setActiveTab] = useState('bestsellers');
 
@@ -254,6 +240,11 @@ const AdminDashboard = ({
   // Store Settings State
   const [tempPhone, setTempPhone] = useState(storePhone);
   const [tempAddress, setTempAddress] = useState(storeAddress);
+
+  // Festive Form State
+  const [fTitle, setFTitle] = useState('');
+  const [fDesc, setFDesc] = useState('');
+  const [fImgUrl, setFImgUrl] = useState('');
 
   useEffect(() => {
     setTempPhone(storePhone);
@@ -297,6 +288,15 @@ const AdminDashboard = ({
     setMenuImg('');
   };
 
+  const handleAddFestiveForm = (e) => {
+    e.preventDefault();
+    if (!fTitle || !fDesc) return;
+    onAddFestiveItem(fTitle, fDesc, fImgUrl);
+    setFTitle('');
+    setFDesc('');
+    setFImgUrl('');
+  };
+
   return (
     <div className="admin-panel-wrapper">
       <div className="admin-sidebar">
@@ -304,30 +304,37 @@ const AdminDashboard = ({
           <span>LFH Admin</span>
         </div>
         <div className="sidebar-menu">
-          <a 
-            href="#" 
-            className={activeTab === 'bestsellers' ? 'active' : ''} 
+          <a
+            href="#"
+            className={activeTab === 'bestsellers' ? 'active' : ''}
             onClick={(e) => { e.preventDefault(); setActiveTab('bestsellers'); }}
           >
             Bestsellers Manager
           </a>
-          <a 
-            href="#" 
-            className={activeTab === 'counter' ? 'active' : ''} 
+          <a
+            href="#"
+            className={activeTab === 'counter' ? 'active' : ''}
             onClick={(e) => { e.preventDefault(); setActiveTab('counter'); }}
           >
             Counter Manager
           </a>
-          <a 
-            href="#" 
-            className={activeTab === 'menu' ? 'active' : ''} 
+          <a
+            href="#"
+            className={activeTab === 'menu' ? 'active' : ''}
             onClick={(e) => { e.preventDefault(); setActiveTab('menu'); }}
           >
             Menu Manager
           </a>
-          <a 
-            href="#" 
-            className={activeTab === 'settings' ? 'active' : ''} 
+          <a
+            href="#"
+            className={activeTab === 'festive' ? 'active' : ''}
+            onClick={(e) => { e.preventDefault(); setActiveTab('festive'); }}
+          >
+            Festive & Bulk Manager
+          </a>
+          <a
+            href="#"
+            className={activeTab === 'settings' ? 'active' : ''}
             onClick={(e) => { e.preventDefault(); setActiveTab('settings'); }}
           >
             Store Settings
@@ -338,13 +345,15 @@ const AdminDashboard = ({
       <div className="admin-content">
         <header className="admin-header">
           <h2>
-            {activeTab === 'bestsellers' 
-              ? 'Bestsellers Manager' 
-              : activeTab === 'counter' 
-                ? 'Counter Manager' 
-                : activeTab === 'menu' 
-                  ? 'Menu Manager' 
-                  : 'Store Settings'}
+            {activeTab === 'bestsellers'
+              ? 'Bestsellers Manager'
+              : activeTab === 'counter'
+                ? 'Counter Manager'
+                : activeTab === 'menu'
+                  ? 'Menu Manager'
+                  : activeTab === 'festive'
+                    ? 'Festive & Bulk Manager'
+                    : 'Store Settings'}
           </h2>
           <button className="pill outline" onClick={onLogout}>Logout</button>
         </header>
@@ -517,8 +526,8 @@ const AdminDashboard = ({
                 <form onSubmit={handleAddMenuForm}>
                   <div className="input-group">
                     <label>Category</label>
-                    <select 
-                      value={menuCat} 
+                    <select
+                      value={menuCat}
                       onChange={e => setMenuCat(e.target.value)}
                       style={{
                         background: 'rgba(0, 0, 0, 0.25)',
@@ -569,8 +578,8 @@ const AdminDashboard = ({
                   <h3 style={{ margin: 0 }}>Current Menu Items</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--cream-dim)' }}>Filter by Category:</span>
-                    <select 
-                      value={menuCat} 
+                    <select
+                      value={menuCat}
                       onChange={e => setMenuCat(e.target.value)}
                       style={{
                         background: 'rgba(0, 0, 0, 0.25)',
@@ -591,7 +600,7 @@ const AdminDashboard = ({
                     </select>
                   </div>
                 </div>
-                
+
                 {(!menuData[menuCat] || menuData[menuCat].length === 0) ? (
                   <div className="admin-list-empty">
                     No items in this category yet. Add one from the form on the left.
@@ -632,6 +641,101 @@ const AdminDashboard = ({
                       </tbody>
                     </table>
                   </div>
+                )}
+              </div>
+            </div>
+          ) : activeTab === 'festive' ? (
+            <div className="admin-grid-layout">
+              {/* Form Panel */}
+              <div className="admin-form-panel">
+                <h3>Add New Festive Sweet / Bulk Box</h3>
+                <form onSubmit={handleAddFestiveForm}>
+                  <div className="input-group">
+                    <label>Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Festive Sweets & Bulk Boxes?"
+                      value={fTitle}
+                      onChange={e => setFTitle(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>Description</label>
+                    <textarea
+                      placeholder="e.g. Besan laddu, Mohan thal, Jalebi..."
+                      value={fDesc}
+                      onChange={e => setFDesc(e.target.value)}
+                      rows={3}
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.25)',
+                        border: '1px solid var(--line-light)',
+                        padding: '12px 14px',
+                        borderRadius: '8px',
+                        color: 'var(--cream)',
+                        fontSize: '0.95rem',
+                        outline: 'none',
+                        marginTop: '4px',
+                        width: '100%',
+                        resize: 'vertical',
+                        fontFamily: 'inherit'
+                      }}
+                      required
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>Image URL</label>
+                    <input
+                      type="text"
+                      placeholder="https://images.unsplash.com/..."
+                      value={fImgUrl}
+                      onChange={e => setFImgUrl(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="pill lg admin-add-btn">Add Festive Item</button>
+                </form>
+              </div>
+
+              {/* List Panel */}
+              <div className="admin-list-panel">
+                <h3>Current Festive Items</h3>
+                {festiveItems.length === 0 ? (
+                  <div className="admin-list-empty">No items yet. Add one from the form on the left.</div>
+                ) : (
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Image</th>
+                        <th>Title / Description</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {festiveItems.map((item, idx) => (
+                        <tr key={item.docId || item.id || idx}>
+                          <td>
+                            {item.img ? (
+                              <img className="admin-table-thumb" src={item.img} alt={item.title} />
+                            ) : (
+                              <div style={{ width: '48px', height: '48px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px dashed var(--line)' }} />
+                            )}
+                          </td>
+                          <td>
+                            <div className="admin-table-name" style={{ fontWeight: 'bold' }}>{item.title}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--cream-dim)', marginTop: '4px' }}>{item.description}</div>
+                          </td>
+                          <td>
+                            <button
+                              className="admin-delete-btn"
+                              onClick={() => onDeleteFestiveItem(item.docId || item.id)}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
             </div>
@@ -707,6 +811,18 @@ function App() {
     return saved ? JSON.parse(saved) : MENU_DATA;
   });
 
+  const [festiveItems, setFestiveItems] = useState(() => {
+    const saved = localStorage.getItem('lfh_festive_items');
+    return saved ? JSON.parse(saved) : [
+      {
+        id: 'initial-festive',
+        title: "Festive Sweets & Bulk Boxes?",
+        description: "Moti chur laddu, Besan laddu, Mohan thal, Jalebi, and premium custom savouries. Custom packed for events, weddings, parties, or enterprise giftboxes.",
+        img: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=600&auto=format&fit=crop"
+      }
+    ];
+  });
+
   const [storePhone, setStorePhone] = useState(() => {
     return localStorage.getItem('lfh_store_phone') || DEFAULT_PHONE;
   });
@@ -715,25 +831,216 @@ function App() {
     return localStorage.getItem('lfh_store_address') || DEFAULT_ADDRESS;
   });
 
+  const heroImages = useMemo(() => {
+    const imgs = [
+      {
+        thumbnail: gathiyaHero,
+        full: gathiyaHero,
+        alt: "Fresh Gathiya from Laxmi Farshan House"
+      }
+    ];
+
+    // 2. One from Our Bestsellers
+    const bestsellersWithImg = bestsellers.filter(item => item.img);
+    if (bestsellersWithImg.length > 0) {
+      const randomIdx = Math.floor(Math.random() * bestsellersWithImg.length);
+      const item = bestsellersWithImg[randomIdx];
+      imgs.push({
+        thumbnail: item.img,
+        full: item.img,
+        alt: item.n
+      });
+    } else {
+      imgs.push({
+        thumbnail: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=150&auto=format&fit=crop",
+        full: "https://images.unsplash.com/photo-1589476993333-f55b84301219?q=80&w=800&auto=format&fit=crop",
+        alt: "Our Bestsellers"
+      });
+    }
+
+    // 3. One from Straight from the Counter
+    const counterWithImg = counterItems.filter(item => item.img);
+    if (counterWithImg.length > 0) {
+      const randomIdx = Math.floor(Math.random() * counterWithImg.length);
+      const item = counterWithImg[randomIdx];
+      imgs.push({
+        thumbnail: item.img,
+        full: item.img,
+        alt: item.n
+      });
+    } else {
+      imgs.push({
+        thumbnail: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=150&auto=format&fit=crop",
+        full: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?q=80&w=800&auto=format&fit=crop",
+        alt: "Straight from the Counter"
+      });
+    }
+
+    // 4. One from Explore Full Menu (any category)
+    const menuWithImg = Object.values(menuData).flat().filter(item => item.img);
+    if (menuWithImg.length > 0) {
+      const randomIdx = Math.floor(Math.random() * menuWithImg.length);
+      const item = menuWithImg[randomIdx];
+      imgs.push({
+        thumbnail: item.img,
+        full: item.img,
+        alt: item.n
+      });
+    } else {
+      imgs.push({
+        thumbnail: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=150&auto=format&fit=crop",
+        full: "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=800&auto=format&fit=crop",
+        alt: "Explore Full Menu"
+      });
+    }
+
+    return imgs;
+  }, [bestsellers, counterItems, menuData]);
+
+  const activeHeroImg = heroImages[activeHeroIdx] || heroImages[0] || { thumbnail: '', full: '', alt: '' };
+
+  // Real-time Firestore sync for store settings
   useEffect(() => {
-    localStorage.setItem('lfh_bestsellers', JSON.stringify(bestsellers));
-  }, [bestsellers]);
+    if (!isFirebaseEnabled || !db) return;
+
+    const unsubscribe = onSnapshot(doc(db, 'settings', 'store'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.phone) setStorePhone(data.phone);
+        if (data.address) setStoreAddress(data.address);
+      }
+    }, (error) => {
+      console.error("Error fetching store settings from Firestore:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isFirebaseEnabled]);
+
+  // Real-time Firestore sync for menu items
+  useEffect(() => {
+    if (!isFirebaseEnabled || !db) return;
+
+    const unsubscribe = onSnapshot(collection(db, 'menuItems'), (querySnapshot) => {
+      const items = [];
+      querySnapshot.forEach((doc) => {
+        items.push({ docId: doc.id, ...doc.data() });
+      });
+
+      const newMenuData = {
+        "Gathiya": [],
+        "Sev": [],
+        "Chevdo": [],
+        "Puri": [],
+        "Sweets & Others": []
+      };
+
+      // Sort items by order (creation time) first, then name
+      items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.n.localeCompare(b.n));
+
+      items.forEach(item => {
+        const cat = item.category || "Sweets & Others";
+        if (!newMenuData[cat]) {
+          newMenuData[cat] = [];
+        }
+        newMenuData[cat].push({ n: item.n, img: item.img || '', docId: item.docId });
+      });
+      setMenuData(newMenuData);
+    }, (error) => {
+      console.error("Error fetching menu items from Firestore:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isFirebaseEnabled]);
+
+  // Real-time Firestore sync for counter items
+  useEffect(() => {
+    if (!isFirebaseEnabled || !db) return;
+
+    const unsubscribe = onSnapshot(collection(db, 'counterItems'), (querySnapshot) => {
+      const list = [];
+      querySnapshot.forEach((doc) => {
+        list.push({ docId: doc.id, ...doc.data() });
+      });
+      list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.id ?? 0) - (b.id ?? 0));
+      setCounterItems(list);
+    }, (error) => {
+      console.error("Error fetching counter items from Firestore:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isFirebaseEnabled]);
+
+  // Real-time Firestore sync for bestsellers
+  useEffect(() => {
+    if (!isFirebaseEnabled || !db) return;
+
+    const unsubscribe = onSnapshot(collection(db, 'bestsellers'), (querySnapshot) => {
+      const list = [];
+      querySnapshot.forEach((doc) => {
+        list.push({ docId: doc.id, ...doc.data() });
+      });
+      list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.id ?? 0) - (b.id ?? 0));
+      setBestsellers(list);
+    }, (error) => {
+      console.error("Error fetching bestsellers from Firestore:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isFirebaseEnabled]);
 
   useEffect(() => {
-    localStorage.setItem('lfh_counter_items', JSON.stringify(counterItems));
-  }, [counterItems]);
+    if (!isFirebaseEnabled) {
+      localStorage.setItem('lfh_bestsellers', JSON.stringify(bestsellers));
+    }
+  }, [bestsellers, isFirebaseEnabled]);
 
   useEffect(() => {
-    localStorage.setItem('lfh_menu_data', JSON.stringify(menuData));
-  }, [menuData]);
+    if (!isFirebaseEnabled) {
+      localStorage.setItem('lfh_counter_items', JSON.stringify(counterItems));
+    }
+  }, [counterItems, isFirebaseEnabled]);
 
   useEffect(() => {
-    localStorage.setItem('lfh_store_phone', storePhone);
-  }, [storePhone]);
+    if (!isFirebaseEnabled) {
+      localStorage.setItem('lfh_menu_data', JSON.stringify(menuData));
+    }
+  }, [menuData, isFirebaseEnabled]);
+
+  // Real-time Firestore sync for festive items
+  useEffect(() => {
+    if (!isFirebaseEnabled || !db) return;
+
+    const unsubscribe = onSnapshot(collection(db, 'festiveItems'), (querySnapshot) => {
+      const list = [];
+      querySnapshot.forEach((doc) => {
+        list.push({ docId: doc.id, ...doc.data() });
+      });
+      list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.title.localeCompare(b.title));
+      setFestiveItems(list);
+    }, (error) => {
+      console.error("Error fetching festive items from Firestore:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isFirebaseEnabled]);
 
   useEffect(() => {
-    localStorage.setItem('lfh_store_address', storeAddress);
-  }, [storeAddress]);
+    if (!isFirebaseEnabled) {
+      localStorage.setItem('lfh_festive_items', JSON.stringify(festiveItems));
+    }
+  }, [festiveItems, isFirebaseEnabled]);
+
+  useEffect(() => {
+    if (!isFirebaseEnabled) {
+      localStorage.setItem('lfh_store_phone', storePhone);
+    }
+  }, [storePhone, isFirebaseEnabled]);
+
+  useEffect(() => {
+    if (!isFirebaseEnabled) {
+      localStorage.setItem('lfh_store_address', storeAddress);
+    }
+  }, [storeAddress, isFirebaseEnabled]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -768,50 +1075,199 @@ function App() {
     navigateTo('/admin/login');
   };
 
-  const handleAddBestseller = (item) => {
-    setBestsellers(prev => [...prev, item]);
-  };
-
-  const handleDeleteBestseller = (id) => {
-    setBestsellers(prev => prev.filter(item => item.id !== id));
-  };
-
-  const handleAddCounterItem = (item) => {
-    setCounterItems(prev => [...prev, item]);
-  };
-
-  const handleDeleteCounterItem = (id) => {
-    setCounterItems(prev => prev.filter(item => item.id !== id));
-  };
-
-  const handleAddMenuItem = (category, itemName, imgUrl) => {
-    setMenuData(prev => {
-      const updatedCatList = [...(prev[category] || [])];
-      const newItem = { n: itemName };
-      if (imgUrl) {
-        newItem.img = imgUrl;
+  const handleAddBestseller = async (item) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        await addDoc(collection(db, 'bestsellers'), {
+          id: item.id,
+          n: item.n,
+          img: item.img,
+          tag: item.tag || '',
+          order: bestsellers.length
+        });
+      } catch (err) {
+        console.error("Error adding bestseller to Firestore:", err);
+        alert("Error adding bestseller: " + err.message);
       }
-      updatedCatList.push(newItem);
-      return {
-        ...prev,
-        [category]: updatedCatList
-      };
-    });
+    } else {
+      setBestsellers(prev => [...prev, item]);
+    }
   };
 
-  const handleDeleteMenuItem = (category, index) => {
-    setMenuData(prev => {
-      const updatedCatList = (prev[category] || []).filter((_, idx) => idx !== index);
-      return {
-        ...prev,
-        [category]: updatedCatList
-      };
-    });
+  const handleDeleteBestseller = async (id) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        const item = bestsellers.find(b => b.id === id);
+        if (item && item.docId) {
+          await deleteDoc(doc(db, 'bestsellers', item.docId));
+        } else {
+          const q = query(collection(db, 'bestsellers'), where('id', '==', id));
+          const snapshot = await getDocs(q);
+          snapshot.forEach(async (d) => {
+            await deleteDoc(d.ref);
+          });
+        }
+      } catch (err) {
+        console.error("Error deleting bestseller from Firestore:", err);
+        alert("Error deleting bestseller: " + err.message);
+      }
+    } else {
+      setBestsellers(prev => prev.filter(item => item.id !== id));
+    }
   };
 
-  const handleUpdateSettings = (phone, address) => {
-    setStorePhone(phone);
-    setStoreAddress(address);
+  const handleAddCounterItem = async (item) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        await addDoc(collection(db, 'counterItems'), {
+          id: item.id,
+          n: item.n,
+          img: item.img,
+          order: counterItems.length
+        });
+      } catch (err) {
+        console.error("Error adding counter item to Firestore:", err);
+        alert("Error adding counter item: " + err.message);
+      }
+    } else {
+      setCounterItems(prev => [...prev, item]);
+    }
+  };
+
+  const handleDeleteCounterItem = async (id) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        const item = counterItems.find(c => c.id === id);
+        if (item && item.docId) {
+          await deleteDoc(doc(db, 'counterItems', item.docId));
+        } else {
+          const q = query(collection(db, 'counterItems'), where('id', '==', id));
+          const snapshot = await getDocs(q);
+          snapshot.forEach(async (d) => {
+            await deleteDoc(d.ref);
+          });
+        }
+      } catch (err) {
+        console.error("Error deleting counter item from Firestore:", err);
+        alert("Error deleting counter item: " + err.message);
+      }
+    } else {
+      setCounterItems(prev => prev.filter(item => item.id !== id));
+    }
+  };
+
+  const handleAddMenuItem = async (category, itemName, imgUrl) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        await addDoc(collection(db, 'menuItems'), {
+          category,
+          n: itemName,
+          img: imgUrl || '',
+          order: Date.now()
+        });
+      } catch (err) {
+        console.error("Error adding menu item to Firestore:", err);
+        alert("Error adding menu item: " + err.message);
+      }
+    } else {
+      setMenuData(prev => {
+        const updatedCatList = [...(prev[category] || [])];
+        const newItem = { n: itemName };
+        if (imgUrl) {
+          newItem.img = imgUrl;
+        }
+        updatedCatList.push(newItem);
+        return {
+          ...prev,
+          [category]: updatedCatList
+        };
+      });
+    }
+  };
+
+  const handleDeleteMenuItem = async (category, index) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        const item = menuData[category]?.[index];
+        if (item && item.docId) {
+          await deleteDoc(doc(db, 'menuItems', item.docId));
+        }
+      } catch (err) {
+        console.error("Error deleting menu item from Firestore:", err);
+        alert("Error deleting menu item: " + err.message);
+      }
+    } else {
+      setMenuData(prev => {
+        const updatedCatList = (prev[category] || []).filter((_, idx) => idx !== index);
+        return {
+          ...prev,
+          [category]: updatedCatList
+        };
+      });
+    }
+  };
+
+  const handleUpdateSettings = async (phone, address) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        await setDoc(doc(db, 'settings', 'store'), {
+          phone,
+          address
+        }, { merge: true });
+      } catch (err) {
+        console.error("Error saving settings to Firestore:", err);
+        alert("Error saving settings to Firebase: " + err.message);
+      }
+    } else {
+      setStorePhone(phone);
+      setStoreAddress(address);
+    }
+  };
+
+  const handleAddFestiveItem = async (title, description, imgUrl) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        await addDoc(collection(db, 'festiveItems'), {
+          title,
+          description,
+          img: imgUrl || '',
+          order: Date.now()
+        });
+      } catch (err) {
+        console.error("Error adding festive item to Firestore:", err);
+        alert("Error adding festive item: " + err.message);
+      }
+    } else {
+      setFestiveItems(prev => [...prev, {
+        id: Date.now().toString(),
+        title,
+        description,
+        img: imgUrl || ''
+      }]);
+    }
+  };
+
+  const handleDeleteFestiveItem = async (idOrDocId) => {
+    if (isFirebaseEnabled && db) {
+      try {
+        const item = festiveItems.find(f => f.docId === idOrDocId || f.id === idOrDocId);
+        const docId = item?.docId;
+        if (docId) {
+          await deleteDoc(doc(db, 'festiveItems', docId));
+        } else {
+          const q = query(collection(db, 'festiveItems'), where('title', '==', item?.title || ''));
+          const snapshot = await getDocs(q);
+          snapshot.forEach(async (d) => {
+            await deleteDoc(d.ref);
+          });
+        }
+      } catch (err) {
+        console.error("Error deleting festive item from Firestore:", err);
+        alert("Error deleting festive item: " + err.message);
+      }
+    } else {
+      setFestiveItems(prev => prev.filter(f => (f.docId !== idOrDocId && f.id !== idOrDocId)));
+    }
   };
 
   const getWaLink = (text = '') => {
@@ -858,6 +1314,9 @@ function App() {
         storePhone={storePhone}
         storeAddress={storeAddress}
         onUpdateSettings={handleUpdateSettings}
+        festiveItems={festiveItems}
+        onAddFestiveItem={handleAddFestiveItem}
+        onDeleteFestiveItem={handleDeleteFestiveItem}
       />
     );
   }
@@ -890,7 +1349,7 @@ function App() {
               <a className="pill lg outline" href="#menu">Full Menu ↓</a>
             </div>
             <div className="thumb-row">
-              {HERO_IMAGES.map((img, idx) => (
+              {heroImages.map((img, idx) => (
                 <img
                   key={idx}
                   src={img.thumbnail}
@@ -923,8 +1382,8 @@ function App() {
             ) : (
               <img
                 className="hero-product"
-                src={HERO_IMAGES[activeHeroIdx].full}
-                alt={HERO_IMAGES[activeHeroIdx].alt}
+                src={activeHeroImg.full}
+                alt={activeHeroImg.alt}
               />
             )}
           </div>
@@ -953,18 +1412,20 @@ function App() {
       </section>
 
       {/* BANNER CTA */}
-      <div className="banner-cta">
-        <img className="banner-cta-img" src="https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=600&auto=format&fit=crop" alt="Fresh Festive Sweets and Laddus" />
-        <div className="banner-cta-text">
-          <h2>Festive Sweets & Bulk Boxes?</h2>
-          <p>Moti chur laddu, Besan laddu, Mohan thal, Jalebi, and premium custom savouries. Custom packed for events, weddings, parties, or enterprise giftboxes.</p>
-          <div>
-            <a className="pill" style={{ background: "#25D366", color: "#fff", display: "inline-flex", alignItems: "center", gap: "8px" }} href={getWaLink("Hi, I want to place a bulk order")} target="_blank" rel="noopener noreferrer">
-              <WhatsAppIcon size={18} /> WhatsApp for Bulk Orders →
-            </a>
+      {festiveItems.map((item, idx) => (
+        <div key={item.docId || item.id || idx} className="banner-cta">
+          <img className="banner-cta-img" src={item.img || "https://images.unsplash.com/photo-1626132647523-66f5bf380027?q=80&w=600&auto=format&fit=crop"} alt={item.title} />
+          <div className="banner-cta-text">
+            <h2>{item.title}</h2>
+            <p>{item.description}</p>
+            <div>
+              <a className="pill" style={{ background: "#25D366", color: "#fff", display: "inline-flex", alignItems: "center", gap: "8px" }} href={getWaLink(`Hi, I want to place a bulk order for ${item.title}`)} target="_blank" rel="noopener noreferrer">
+                <WhatsAppIcon size={18} /> WhatsApp for Bulk Orders →
+              </a>
+            </div>
           </div>
         </div>
-      </div>
+      ))}
 
       {/* SCROLLABLE STRIP */}
       <section className="strip-section">
