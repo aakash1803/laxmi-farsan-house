@@ -835,6 +835,26 @@ function App() {
     return localStorage.getItem('lfh_store_address') || DEFAULT_ADDRESS;
   });
 
+  const [loadingBestsellers, setLoadingBestsellers] = useState(isFirebaseEnabled);
+  const [loadingCounter, setLoadingCounter] = useState(isFirebaseEnabled);
+  const [loadingMenu, setLoadingMenu] = useState(isFirebaseEnabled);
+  const [loadingFestive, setLoadingFestive] = useState(isFirebaseEnabled);
+  const [loadingSettings, setLoadingSettings] = useState(isFirebaseEnabled);
+
+  const isLoading = isFirebaseEnabled && (loadingBestsellers || loadingCounter || loadingMenu || loadingFestive || loadingSettings);
+
+  useEffect(() => {
+    if (!isFirebaseEnabled) return;
+    const timer = setTimeout(() => {
+      setLoadingBestsellers(false);
+      setLoadingCounter(false);
+      setLoadingMenu(false);
+      setLoadingFestive(false);
+      setLoadingSettings(false);
+    }, 3000); // 3-second fallback timeout
+    return () => clearTimeout(timer);
+  }, []);
+
   const heroImages = useMemo(() => {
     const imgs = [
       {
@@ -895,8 +915,10 @@ function App() {
         if (data.phone) setStorePhone(data.phone);
         if (data.address) setStoreAddress(data.address);
       }
+      setLoadingSettings(false);
     }, (error) => {
       console.error("Error fetching store settings from Firestore:", error);
+      setLoadingSettings(false);
     });
 
     return () => unsubscribe();
@@ -931,8 +953,10 @@ function App() {
         newMenuData[cat].push({ n: item.n, img: item.img || '', docId: item.docId });
       });
       setMenuData(newMenuData);
+      setLoadingMenu(false);
     }, (error) => {
       console.error("Error fetching menu items from Firestore:", error);
+      setLoadingMenu(false);
     });
 
     return () => unsubscribe();
@@ -949,8 +973,10 @@ function App() {
       });
       list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.id ?? 0) - (b.id ?? 0));
       setCounterItems(list);
+      setLoadingCounter(false);
     }, (error) => {
       console.error("Error fetching counter items from Firestore:", error);
+      setLoadingCounter(false);
     });
 
     return () => unsubscribe();
@@ -967,8 +993,10 @@ function App() {
       });
       list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.id ?? 0) - (b.id ?? 0));
       setBestsellers(list);
+      setLoadingBestsellers(false);
     }, (error) => {
       console.error("Error fetching bestsellers from Firestore:", error);
+      setLoadingBestsellers(false);
     });
 
     return () => unsubscribe();
@@ -1003,8 +1031,10 @@ function App() {
       });
       list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.title.localeCompare(b.title));
       setFestiveItems(list);
+      setLoadingFestive(false);
     }, (error) => {
       console.error("Error fetching festive items from Firestore:", error);
+      setLoadingFestive(false);
     });
 
     return () => unsubscribe();
@@ -1266,6 +1296,17 @@ function App() {
     const clean = storePhone.replace(/\D/g, '');
     return `tel:${storePhone.trim().startsWith('+') ? storePhone.trim().replace(/\s+/g, '') : `+91${clean}`}`;
   };
+
+  if (isLoading) {
+    return (
+      <div className="loading-overlay">
+        <div className="loader-container">
+          <div className="spinner"></div>
+          <div className="loader-brand">LAXMI <span>FARSHAN</span></div>
+        </div>
+      </div>
+    );
+  }
 
   if (currentPath === '/admin/login') {
     return (
